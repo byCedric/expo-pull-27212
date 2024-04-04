@@ -1,0 +1,116 @@
+name: test all examples
+
+on:
+  workflow_dispatch:
+    inputs:
+      folderName:
+        description: The folder name to use when generating project
+        default: test-example
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  example:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        example:
+          - blank
+          - navigation
+          - with-apollo
+          - with-auth0
+          - with-aws-storage-upload
+          - with-apollo
+          - with-auth0
+          - with-aws-storage-upload
+          - with-camera
+          - with-canary-new-arch
+          - with-canary-new-arch-tv
+          - with-custom-font
+          - with-descope
+          - with-dev-client
+          - with-drawer-navigation
+          - with-facebook-auth
+          - with-firebase-saml-login
+          - with-firebase-storage-upload
+          - with-formdata-image-upload
+          - with-formik
+          - with-gatsby
+          - with-google-vision
+          - with-html
+          - with-icons
+          - with-magic
+          - with-maps
+          - with-moti
+          - with-native-base
+          - with-nativewind
+          - with-new-arch
+          - with-nextjs
+          - with-openai
+          - with-pdf
+          - with-postpublish-hooks
+          - with-preact
+          - with-processing
+          - with-react-native-elements
+          - with-react-router
+          - with-react-three-fiber
+          - with-realm
+          - with-reanimated
+          - with-router
+          - with-router-menus
+          - with-router-tailwind
+          - with-socket-io
+          - with-splash-screen
+          - with-sqlite
+          - with-storybook
+          - with-styled-components
+          - with-svg
+          - with-tab-navigation
+          - with-tailwindcss
+          - with-tfjs-camera
+          - with-three
+          - with-tv
+          - with-twitter-auth
+          - with-typescript
+          - with-victory-native
+          - with-video-background
+          - with-webbrowser-redirect
+          - with-webrtc
+          - with-workbox
+          - with-yarn-workspaces
+          - with-zustand
+
+    steps:
+      - name: 🏗 Setup repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup fork
+        uses: ./.github/actions/setup-fork
+
+      - name: 🧪 Create ${{ matrix.example }}
+        run: node ./fork/packages/create-expo ./${{ github.event.inputs.folderName }} --example ${{ matrix.example }}
+        env:
+          EXPO_NO_TELEMETRY: "true"
+          npm_config_user_agent: "bun/1.x.x" # Force-use bun
+
+      - name: 🧑‍⚕️ Check ${{ matrix.example }}
+        run: bunx expo-doctor
+        continue-on-error: true
+        working-directory: ./${{ github.event.inputs.folderName }}
+
+      - name: ℹ️ Read structure
+        working-directory: ./${{ github.event.inputs.folderName }}
+        run: >
+          find . -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./bun.lockb" -print0 |
+            while IFS= read -r -d '' line; do
+              echo "::group::$line";
+              cat $line;
+              echo "::endgroup::";
+            done
+
+      - name: ℹ️ Read config
+        run: bun expo config
+        working-directory: ./${{ github.event.inputs.folderName }}

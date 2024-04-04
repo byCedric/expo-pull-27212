@@ -1,0 +1,60 @@
+name: test template
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: 'Name of the template to test (--template <name>)'
+        required: true
+      folderName:
+        description: The folder name to use when generating project
+        default: test-template
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: 🏗 Setup repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup fork
+        uses: ./.github/actions/setup-fork
+
+      - name: 🧪 Create template
+        run: node ./fork/packages/create-expo ./${{ github.event.inputs.folderName }} --template ${{ github.event.inputs.template }}
+        env:
+          EXPO_NO_TELEMETRY: "true"
+          npm_config_user_agent: "bun/1.x.x" # Force-use bun
+
+      - name: 🧑‍⚕️ Check template
+        run: bunx expo-doctor
+        continue-on-error: true
+        working-directory: ./${{ github.event.inputs.folderName }}
+
+      - name: ℹ️ Read structure
+        working-directory: ./${{ github.event.inputs.folderName }}
+        run: >
+          find . -type f -not -path "./node_modules/*" -not -path "./.git/*" -not -path "./bun.lockb" -print0 |
+            while IFS= read -r -d '' line; do
+              echo "::group::$line";
+              cat $line;
+              echo "::endgroup::";
+            done
+
+      - name: ℹ️ Read config
+        run: bun expo config
+        working-directory: ./${{ github.event.inputs.folderName }}
+
+      - name: 🗄️ Archive template
+        uses: actions/upload-artifact@v4
+        with:
+          name: template-${{ github.event.inputs.template }}
+          path: |
+            ${{ github.event.inputs.folderName }}
+            !${{ github.event.inputs.folderName }}/node_modules/**
